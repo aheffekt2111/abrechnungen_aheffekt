@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Dauer → Dezimal & Verdienst (Rundung: erst Stunden)</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#0b0c0f">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Dauer→Verdienst">
+
+  <style>
+    :root{
+      --bg:#0b0c0f; --card:#151824; --ink:#e9ecf1; --muted:#a7afbf;
+      --accent:#6dd1ff; --accent-2:#7affb0; --error:#ff6b6b;
+      --radius:14px; --gap:14px; --pad:18px; --shadow:0 10px 30px rgba(0,0,0,.35)
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
+      background:radial-gradient(1200px 600px at 80% -10%, #12233a, transparent),
+                 radial-gradient(1000px 700px at -10% 110%, #1b2a34, transparent),
+                 var(--bg);
+      color:var(--ink);
+      display:block; padding:16px;
+      padding-top: calc(env(safe-area-inset-top) + 16px);
+      padding-bottom: calc(env(safe-area-inset-bottom) + 20px);
+      min-height:100%;
+    }
+    .app{
+      width:100%; max-width:520px; margin:0 auto;
+      background:linear-gradient(180deg,#171a28,#121523);
+      border:1px solid #23283a; border-radius:calc(var(--radius) + 4px);
+      box-shadow:var(--shadow); overflow:hidden
+    }
+    header{padding:22px var(--pad) 10px}
+    header h1{margin:0; font-size:1.2rem; letter-spacing:.2px}
+    header p{margin:.35rem 0 0; color:var(--muted); font-size:.95rem}
+
+    .card{background:var(--card); margin:0 var(--pad) var(--gap); border-radius:var(--radius); padding:var(--pad); border:1px solid #23283a}
+    .grid{display:grid; gap:12px}
+    @media(min-width:430px){ .grid-2{grid-template-columns:1fr 1fr} }
+    label{display:block; font-size:.9rem; color:var(--muted); margin-bottom:6px}
+    input, select, button{
+      width:100%; padding:14px 12px; border-radius:12px; border:1px solid #2a3148;
+      background:#0f1322; color:var(--ink); font-size:1rem; outline:none;
+    }
+    input::placeholder{color:#7f89a3}
+    .result{display:grid; gap:10px; margin-top:10px}
+    .result .big{font-size:1.6rem; font-weight:700}
+    .muted{color:var(--muted)}
+    .ok{color:var(--accent-2)}
+    .hint{font-size:.9rem; color:var(--muted)}
+    footer{padding:10px var(--pad) 18px; text-align:center; color:var(--muted); font-size:.85rem}
+    .quick{display:flex; gap:8px; flex-wrap:wrap}
+    .quick button{padding:8px 10px; border-radius:999px; background:#0e1424; border:1px solid #2a3148; cursor:pointer}
+    .chip{display:inline-flex; align-items:center; gap:8px; padding:8px 10px; border-radius:999px; background:#0e1424; border:1px solid #2a3148; color:var(--muted); font-size:.85rem}
+  </style>
+</head>
+<body>
+  <main class="app" role="application" aria-labelledby="title">
+    <header>
+      <h1 id="title">Dauer → Dezimal & Verdienst</h1>
+      <p>Fest: <strong>erst Stunden runden</strong>, dann Lohn berechnen. Funktioniert offline.</p>
+    </header>
+
+    <section class="card grid">
+      <div class="grid grid-2">
+        <div>
+          <label for="h">Stunden</label>
+          <input id="h" type="number" min="0" step="1" inputmode="numeric" placeholder="z. B. 7" />
+        </div>
+        <div>
+          <label for="m">Minuten</label>
+          <input id="m" type="number" min="0" step="1" inputmode="numeric" placeholder="z. B. 30" />
+        </div>
+      </div>
+
+      <div class="quick" aria-label="Schnell-Buttons Minuten">
+        <span class="chip">Schnell: +</span>
+        <button type="button" data-addm="15">+15 min</button>
+        <button type="button" data-addm="30">+30 min</button>
+        <button type="button" data-addm="45">+45 min</button>
+      </div>
+
+      <div class="grid grid-2">
+        <div>
+          <label for="decimals">Dezimalstellen</label>
+          <input id="decimals" type="number" min="1" max="3" step="1" value="2" />
+        </div>
+        <div>
+          <label for="wage">Stundenlohn (EUR)</label>
+          <input id="wage" type="text" inputmode="decimal" placeholder="z. B. 16,50 oder 16.50" />
+        </div>
+      </div>
+
+      <div class="result" aria-live="polite" aria-atomic="true">
+        <div id="hhmm" class="big">Dauer: –</div>
+        <div id="decimal" class="muted">Dezimalstunden (gerundet): –</div>
+        <div id="earnings" class="big">Verdienst: –</div>
+        <div id="details" class="hint"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <span class="chip">💾 Speichert Lohn & Einstellungen lokal</span>
+      <span class="chip">📱 iPhone-freundliches Layout</span>
+      <span class="chip">📡 Offlinefähig (PWA)</span>
+    </section>
+
+    <footer>© <span id="year"></span> – Kleines Tool, keine Gewähr.</footer>
+  </main>
+
+  <script>
+    // PWA: Service Worker registrieren
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(()=>{});
+      });
+    }
+
+    const els = {
+      h: document.getElementById('h'),
+      m: document.getElementById('m'),
+      decimals: document.getElementById('decimals'),
+      wage: document.getElementById('wage'),
+      hhmm: document.getElementById('hhmm'),
+      decimal: document.getElementById('decimal'),
+      earnings: document.getElementById('earnings'),
+      details: document.getElementById('details'),
+      year: document.getElementById('year')
+    };
+    els.year.textContent = new Date().getFullYear();
+
+    // Restore settings
+    try{
+      const saved = JSON.parse(localStorage.getItem('dauer-settings-fixed-before-pwa') || '{}');
+      if (saved.wageRaw != null) els.wage.value = saved.wageRaw;
+      if (saved.decimals) els.decimals.value = saved.decimals;
+    }catch{}
+
+    function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+    function pad(n){ return String(n).padStart(2,'0'); }
+    function normalize(h, m){
+      h = Math.max(0, Math.floor(h||0));
+      m = Math.max(0, Math.floor(m||0));
+      if (m >= 60){
+        h += Math.floor(m/60);
+        m = m % 60;
+      }
+      return [h, m];
+    }
+    function parseDecimalDE(s){
+      if (s == null) return NaN;
+      const t = String(s).trim().replace(',', '.');
+      const v = Number(t);
+      return Number.isFinite(v) ? v : NaN;
+    }
+    function formatMoneyEUR(amount){
+      try{
+        return new Intl.NumberFormat('de-DE', { style:'currency', currency: 'EUR' }).format(amount);
+      }catch{
+        return amount.toFixed(2) + ' €';
+      }
+    }
+    function roundDecimalHours(totalMinutes, n){
+      const scale = Math.pow(10, n);
+      const val = totalMinutes / 60;
+      return Math.round(val * scale) / scale;
+    }
+    function saveSettings(){
+      const dec = clamp(parseInt(els.decimals.value || '2', 10), 1, 3);
+      localStorage.setItem('dauer-settings-fixed-before-pwa', JSON.stringify({
+        wageRaw: els.wage.value,
+        decimals: dec
+      }));
+    }
+
+    function calculate(){
+      saveSettings();
+      let h = Number(els.h.value || 0);
+      let m = Number(els.m.value || 0);
+      [h, m] = normalize(h, m);
+      els.h.value = h; els.m.value = m;
+
+      if (h === 0 && m === 0){
+        els.hhmm.textContent = 'Dauer: –';
+        els.decimal.textContent = 'Dezimalstunden (gerundet): –';
+        els.earnings.textContent = 'Verdienst: –';
+        els.details.textContent = '';
+        return;
+      }
+
+      const totalMinutes = h*60 + m;
+      const decPlaces = clamp(parseInt(els.decimals.value || '2', 10), 1, 3);
+
+      // 1) Dezimalstunden runden (fest)
+      const decRounded = roundDecimalHours(totalMinutes, decPlaces);
+      const decRoundedStr = new Intl.NumberFormat('de-DE', {
+        minimumFractionDigits: decPlaces, maximumFractionDigits: decPlaces
+      }).format(decRounded);
+
+      // 2) Lohn berechnen (mit gerundeten Stunden)
+      const wage = parseDecimalDE(els.wage.value);
+      let earningsText = 'Verdienst: –';
+      if (Number.isFinite(wage) && wage > 0){
+        const earnings = Math.round((wage * decRounded) * 100) / 100;
+        earningsText = `Verdienst: <span class="big">${formatMoneyEUR(earnings)}</span>`;
+      }
+
+      els.hhmm.innerHTML = `Dauer: <span class="ok">${h} h ${pad(m)} min</span>`;
+      els.decimal.innerHTML = `Dezimalstunden (gerundet): <strong>${decRoundedStr}</strong>`;
+      els.earnings.innerHTML = earningsText;
+      els.details.textContent = `Rundung fest: erst Stunden auf ${decPlaces} Dezimalstellen, dann Lohn berechnen.`;
+    }
+
+    document.querySelectorAll('[data-addm]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const add = parseInt(btn.getAttribute('data-addm'), 10);
+        let h = Number(els.h.value || 0);
+        let m = Number(els.m.value || 0) + add;
+        [h, m] = normalize(h, m);
+        els.h.value = h; els.m.value = m;
+        calculate();
+      });
+    });
+
+    ['h','m','decimals','wage'].forEach(id => {
+      els[id].addEventListener('input', calculate);
+      els[id].addEventListener('change', calculate);
+    });
+
+    window.addEventListener('DOMContentLoaded', calculate);
+  </script>
+</body>
+</html>
